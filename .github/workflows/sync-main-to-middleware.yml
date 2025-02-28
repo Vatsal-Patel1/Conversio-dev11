@@ -3,7 +3,7 @@ name: Sync Main to Middleware
 on:
   push:
     branches:
-      - main
+      - Production
 
 permissions:
   contents: write
@@ -26,15 +26,15 @@ jobs:
       - name: Merge main into middleware with Conflict Resolution
         run: |
           git fetch origin
-          git checkout middleware
-          git pull origin middleware
+          git checkout Staging
+          git pull origin Staging
           
           # Try merging without committing
-          git merge origin/main --no-commit --no-ff || true
+          git merge origin/Production --no-commit --no-ff || true
           
           # If there are conflicts, keep the middleware version by default
           git diff --name-only --diff-filter=U | xargs git checkout --ours || true
           
           # Commit changes
           git commit -m "Merged main into middleware while keeping custom middleware code" || echo "No changes to commit"
-          git push origin middleware
+          git push origin Staging
