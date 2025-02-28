@@ -1,0 +1,33 @@
+name: Deploy Staging to Production
+
+on:
+  workflow_dispatch:  # Manual trigger
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          base: Production
+          branch: Staging
+          title: "Deploy: Merge Staging into Production"
+          body: "This PR merges the latest changes from Staging into Production."
+          labels: "deployment"
+          draft: false
