@@ -1,0 +1,40 @@
+name: Sync Main to Middleware
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensure full history is fetched
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge main into middleware with Conflict Resolution
+        run: |
+          git fetch origin
+          git checkout middleware
+          git pull origin middleware
+          
+          # Try merging without committing
+          git merge origin/main --no-commit --no-ff || true
+          
+          # If there are conflicts, keep the middleware version by default
+          git diff --name-only --diff-filter=U | xargs git checkout --ours || true
+          
+          # Commit changes
+          git commit -m "Merged main into middleware while keeping custom middleware code" || echo "No changes to commit"
+          git push origin middleware
