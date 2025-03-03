@@ -5,7 +5,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   deploy:
@@ -22,12 +21,10 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
-          base: Production
-          branch: Staging
-          title: "Deploy: Merge Staging into Production"
-          body: "This PR merges the latest changes from Staging into Production."
-          labels: "deployment"
-          draft: false
+      - name: Merge Staging into Production
+        run: |
+          git fetch origin
+          git checkout Production
+          git pull origin Production
+          git merge --no-ff origin/Staging -m "Merging staging into production"
+          git push origin Production
