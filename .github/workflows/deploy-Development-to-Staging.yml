@@ -79,6 +79,16 @@ jobs:
             echo "❌ No changes found in allowed folders."
           fi
 
+          echo "🔹 Allowing ALL modified changes in sections/, assets/, layout/, snippets/, and locales/..."
+          modified_files=$(git diff --name-only -- sections/ assets/ layout/ snippets/ locales/ || true)
+          if [[ -n "$modified_files" ]]; then
+            echo "✅ Allowed changes found:"
+            echo "$modified_files"
+            echo "$modified_files" | xargs -r git add
+          else
+            echo "❌ No modified changes found in allowed folders."
+          fi
+
           echo "🔹 Adding settings_schema.json"
           git add config/settings_schema.json
 
