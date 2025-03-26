@@ -32,21 +32,29 @@ jobs:
         run: |
           # Exclude settings_data.json
           git reset HEAD config/settings_data.json || true
-          git checkout -- config/settings_data.json || true
+          git restore --source=origin/Staging -- config/settings_data.json || true
           
-          # Allow only NEW JSON files in templates/ (Added files 'A')
-          git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$' | xargs -r git add
-          
-          # Allow all .liquid file changes in templates/
-          git diff --name-only origin/Development -- templates/ | grep '\.liquid$' | xargs -r git add
+          # Allow only NEW JSON files in templates/
+          for file in $(git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$'); do
+            git add "$file"
+          done
 
-          # Explicitly prevent modified JSON files in templates/ from being committed
-          git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$' | xargs -r git reset HEAD
-          git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$' | xargs -r git checkout --
+          # Allow all .liquid file changes in templates/
+          for file in $(git diff --name-only origin/Development -- templates/ | grep '\.liquid$'); do
+            git add "$file"
+          done
+
+          # Ensure modified JSON files in templates/ are NOT added
+          for file in $(git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$'); do
+            git reset HEAD "$file"
+            git restore --source=origin/Staging -- "$file"
+          done
 
           # ✅ Allow ALL changes (new & modified files) in sections/, assets/, layout/, snippets/, and locales/
           for folder in sections assets layout snippets locales; do
-            git diff --name-only origin/Development -- $folder/ | xargs -r git add
+            for file in $(git diff --name-only origin/Development -- $folder/); do
+              git add "$file"
+            done
           done
 
           # Add settings_schema.json
