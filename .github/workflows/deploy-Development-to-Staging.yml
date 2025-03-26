@@ -30,18 +30,28 @@ jobs:
         run: |
           # Get the list of modified, added, or deleted files between Staging and Development
           git diff --name-only origin/Staging...origin/Development > changed_files.txt
-          cat changed_files.txt
+          cat changed_files.txt  # Debugging: print out the changed files
 
       - name: Filter Allowed Files (JSON and Liquid)
         id: filter_json_and_liquid
         run: |
-          # Filter out modified JSON files from template folder but include new ones
-          NEW_JSON_FILES=$(grep -E '^template/.*\.json$' changed_files.txt | grep '^[^ ]*$')  # Only newly added JSON files
-          MODIFIED_LIQUID_FILES=$(grep -E '^template/.*\.liquid$' changed_files.txt)
+          # Check if the changed_files.txt has content
+          if [[ -s changed_files.txt ]]; then
+            # Filter out modified JSON files from template folder but include new ones
+            NEW_JSON_FILES=$(grep -E '^template/.*\.json$' changed_files.txt | grep '^[^ ]*$')  # Only newly added JSON files
+            MODIFIED_LIQUID_FILES=$(grep -E '^template/.*\.liquid$' changed_files.txt)
 
-          # Allow only new JSON files and modified Liquid files
-          ALLOWED_FILES="$NEW_JSON_FILES $MODIFIED_LIQUID_FILES"
-          echo "ALLOWED_FILES=$ALLOWED_FILES" >> $GITHUB_ENV  # Save this variable for later use
+            # Debugging: Print the filtered files
+            echo "New JSON Files: $NEW_JSON_FILES"
+            echo "Modified Liquid Files: $MODIFIED_LIQUID_FILES"
+
+            # Combine the allowed files
+            ALLOWED_FILES="$NEW_JSON_FILES $MODIFIED_LIQUID_FILES"
+            echo "ALLOWED_FILES=$ALLOWED_FILES" >> $GITHUB_ENV  # Save this variable for later use
+          else
+            echo "No changed files detected. Skipping the merge process."
+            exit 1  # Exit if no files were changed
+          fi
 
       - name: Checkout Staging Branch Again
         uses: actions/checkout@v3
@@ -50,6 +60,12 @@ jobs:
 
       - name: Apply Allowed Changes to Staging
         run: |
+          # If ALLOWED_FILES is empty, we stop the workflow
+          if [[ -z "$ALLOWED_FILES" ]]; then
+            echo "No allowed files to merge. Exiting."
+            exit 0
+          fi
+
           # Create a new temporary branch for merging allowed changes
           git checkout -b merge-allowed-changes
 
