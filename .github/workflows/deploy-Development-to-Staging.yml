@@ -30,38 +30,54 @@ jobs:
 
       - name: Add Allowed Files Manually
         run: |
-          set -x  # Debug mode: Shows each command executed
-
           echo "🔹 Excluding settings_data.json"
           git restore --staged config/settings_data.json || true
           git checkout -- config/settings_data.json || true
           
-          echo "🔹 Allowing only NEW JSON files in templates/ (Added 'A'):"
-          git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$' || true > new_json_files.log
-          cat new_json_files.log
-          xargs -a new_json_files.log -r git add
+          echo "🔹 Checking for new JSON files in templates/ (Added 'A')..."
+          new_json_files=$(git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$' || true)
+          if [[ -n "$new_json_files" ]]; then
+            echo "✅ Adding new JSON files:"
+            echo "$new_json_files"
+            git add $new_json_files
+          else
+            echo "❌ No new JSON files found."
+          fi
 
-          echo "🔹 Allowing all .liquid file changes in templates/:"
-          git diff --name-only origin/Development -- templates/ | grep '\.liquid$' || true > liquid_files.log
-          cat liquid_files.log
-          xargs -a liquid_files.log -r git add
+          echo "🔹 Checking for modified JSON files in templates/ (Should be ignored)..."
+          modified_json_files=$(git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$' || true)
+          if [[ -n "$modified_json_files" ]]; then
+            echo "🚫 Excluding modified JSON files:"
+            echo "$modified_json_files"
+            git restore --staged $modified_json_files
+            git checkout -- $modified_json_files
+          else
+            echo "✅ No modified JSON files found."
+          fi
 
-          echo "🔹 Modified JSON files in templates/ (Excluding from commit):"
-          git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$' || true > modified_json_files.log
-          cat modified_json_files.log
-          xargs -a modified_json_files.log -r git restore --staged
-          xargs -a modified_json_files.log -r git checkout --
+          echo "🔹 Allowing all .liquid file changes in templates/..."
+          liquid_files=$(git diff --name-only origin/Development -- templates/ | grep '\.liquid$' || true)
+          if [[ -n "$liquid_files" ]]; then
+            echo "✅ Adding liquid files:"
+            echo "$liquid_files"
+            git add $liquid_files
+          else
+            echo "❌ No .liquid file changes found."
+          fi
 
-          echo "🔹 Allowing ALL changes in sections/, assets/, layout/, snippets/, and locales/:"
-          for folder in sections assets layout snippets locales; do
-            git diff --name-only origin/Development -- $folder/ || true > allowed_files.log
-            cat allowed_files.log
-            xargs -a allowed_files.log -r git add
-          done
+          echo "🔹 Allowing ALL changes in sections/, assets/, layout/, snippets/, and locales/..."
+          allowed_files=$(git diff --name-only origin/Development -- sections/ assets/ layout/ snippets/ locales/ || true)
+          if [[ -n "$allowed_files" ]]; then
+            echo "✅ Adding allowed files:"
+            echo "$allowed_files"
+            git add $allowed_files
+          else
+            echo "❌ No changes found in allowed folders."
+          fi
 
           echo "🔹 Adding settings_schema.json"
           git add config/settings_schema.json
 
           echo "🔹 Committing and pushing changes..."
-          git commit -m "Deploy: Selective sync from Development to Staging (including sections, assets, layout, snippets, locales, excluding modified JSONs in templates/)" || echo "✅ No code changes to commit"
+          git commit -m "Deploy: Selective sync from Development to Staging" || echo "✅ No code changes to commit"
           git push origin Staging
