@@ -1,9 +1,10 @@
-name: Merge Development into Staging
+name: Deploy Development to Staging
 
 on:
-  push:
-    branches:
-      - Development
+  workflow_dispatch: # Manual trigger via GitHub Actions
+
+permissions:
+  contents: write  # Allow GitHub Actions to push changes
 
 jobs:
   merge:
