@@ -23,7 +23,6 @@ jobs:
 
       - name: Fetch Latest Changes
         run: |
-          git fetch origin --all  # Fetch all branches
           git checkout Staging
           git pull origin Staging
           git merge --no-commit --no-ff origin/Development || true
