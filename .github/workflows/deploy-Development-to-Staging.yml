@@ -28,18 +28,29 @@ jobs:
           git pull origin Staging
           git merge --no-commit --no-ff origin/Development || true
 
-          # Exclude specific files but allow necessary changes
+          # Exclude specific files
           git reset HEAD config/settings_data.json || true
-          git checkout -- config/settings_data.json || true  # Restore settings_data.json to middleware state
+          git checkout -- config/settings_data.json || true
 
-          # Allow only newly added templates
+          # Allow only newly added template files (including .json)
           for file in $(git diff --diff-filter=A --name-only origin/Development -- templates/); do
             git add "$file"
+          done
+
+          # Allow changes in .liquid files only
+          for file in $(git diff --name-only origin/Development -- templates/ | grep '\.liquid$'); do
+            git add "$file"
+          done
+
+          # Ensure modified JSON files are NOT added (unstage them)
+          for file in $(git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$'); do
+            git reset HEAD "$file"
+            git checkout -- "$file"  # Revert changes in modified JSON files
           done
 
           # Allow changes to settings_schema.json
           git add config/settings_schema.json
 
-          # Commit and push only code changes, new settings, and new templates
-          git commit -m "Merge Development to Staging (excluding settings_data.json, keeping new templates & schema)" || echo "No code changes to commit"
+          # Commit and push changes
+          git commit -m "Merge Development to Staging (excluding settings_data.json & modified JSONs, keeping new templates, .liquid files & schema)" || echo "No code changes to commit"
           git push origin Staging
