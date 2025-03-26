@@ -1,6 +1,6 @@
 .cart {
   position: relative;
-  display: block;
+  display: none;
 }
 
 .cart__empty-text,
