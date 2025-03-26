@@ -13,61 +13,65 @@ jobs:
       - name: Checkout Staging Branch
         uses: actions/checkout@v3
         with:
-          ref: staging
-      
-      - name: Fetch all branches
-        run: git fetch --all
+          ref: Staging
+          fetch-depth: 0  # Ensure the full history is fetched to avoid shallow clone issues
+
+      - name: Fetch All Remote Branches
+        run: git fetch --all  # Make sure all branches are fetched from the remote
 
       - name: Checkout Development Branch
         uses: actions/checkout@v3
         with:
-          ref: development
-          
-      - name: List all files changed
+          ref: Development
+          fetch-depth: 0  # Ensure the full history is fetched
+
+      - name: List Changed Files Between Staging and Development
         id: list_changed_files
         run: |
-          # Get the list of modified, added, or deleted files
-          git diff --name-only origin/staging...origin/development > changed_files.txt
+          # Get the list of modified, added, or deleted files between Staging and Development
+          git diff --name-only origin/Staging...origin/Development > changed_files.txt
           cat changed_files.txt
-          
-      - name: Filter JSON files and allow new JSON files only
-        id: filter_json
+
+      - name: Filter Allowed Files (JSON and Liquid)
+        id: filter_json_and_liquid
         run: |
-          # Filter files and identify the modified files
-          NEW_JSON_FILES=$(grep -E '^template/.*\.json$' changed_files.txt | grep -v '^template/.*\.json$')
+          # Filter out modified JSON files from template folder but include new ones
+          NEW_JSON_FILES=$(grep -E '^template/.*\.json$' changed_files.txt | grep '^[^ ]*$')  # Only newly added JSON files
           MODIFIED_LIQUID_FILES=$(grep -E '^template/.*\.liquid$' changed_files.txt)
 
-          # Create a list of files that should be added to staging
+          # Allow only new JSON files and modified Liquid files
           ALLOWED_FILES="$NEW_JSON_FILES $MODIFIED_LIQUID_FILES"
-          echo "ALLOWED_FILES=$ALLOWED_FILES" >> $GITHUB_ENV
+          echo "ALLOWED_FILES=$ALLOWED_FILES" >> $GITHUB_ENV  # Save this variable for later use
 
       - name: Checkout Staging Branch Again
         uses: actions/checkout@v3
         with:
-          ref: staging
+          ref: Staging
 
-      - name: Apply allowed changes to Staging
+      - name: Apply Allowed Changes to Staging
         run: |
-          # Create a new branch to commit the allowed changes
+          # Create a new temporary branch for merging allowed changes
           git checkout -b merge-allowed-changes
 
-          # Add only allowed files from Development branch
+          # Add only the allowed files from the Development branch
           for file in $ALLOWED_FILES; do
-            git checkout origin/development -- "$file"
+            git checkout origin/Development -- "$file"
           done
 
-          # Commit and push changes to the Staging branch
+          # Commit and push the allowed changes to a temporary branch
           git add .
           git commit -m "Merge allowed changes from Development to Staging"
           git push origin merge-allowed-changes
 
-      - name: Merge Changes into Staging
+      - name: Merge Allowed Changes into Staging
         run: |
-          git checkout staging
+          # Checkout the Staging branch and merge the allowed changes
+          git checkout Staging
           git merge --no-ff merge-allowed-changes
-          git push origin staging
+          git push origin Staging
 
-      - name: Clean up temporary branch
+      - name: Clean Up Temporary Branch
         run: |
+          # Delete the temporary merge branch
           git branch -D merge-allowed-changes
           git push origin --delete merge-allowed-changes
