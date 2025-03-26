@@ -31,30 +31,22 @@ jobs:
       - name: Add Allowed Files Manually
         run: |
           # Exclude settings_data.json
-          git reset HEAD config/settings_data.json || true
-          git restore --source=origin/Staging -- config/settings_data.json || true
+          git restore --staged config/settings_data.json || true
+          git checkout -- config/settings_data.json || true
           
-          # Allow only NEW JSON files in templates/
-          for file in $(git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$'); do
-            git add "$file"
-          done
-
+          # Allow only NEW JSON files in templates/ (Added files 'A')
+          git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$' | xargs -r git add
+          
           # Allow all .liquid file changes in templates/
-          for file in $(git diff --name-only origin/Development -- templates/ | grep '\.liquid$'); do
-            git add "$file"
-          done
+          git diff --name-only origin/Development -- templates/ | grep '\.liquid$' | xargs -r git add
 
-          # Ensure modified JSON files in templates/ are NOT added
-          for file in $(git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$'); do
-            git reset HEAD "$file"
-            git restore --source=origin/Staging -- "$file"
-          done
+          # ❌ EXPLICITLY REMOVE MODIFIED JSON FILES FROM COMMIT
+          git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$' | xargs -r git restore --staged
+          git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$' | xargs -r git checkout --
 
           # ✅ Allow ALL changes (new & modified files) in sections/, assets/, layout/, snippets/, and locales/
           for folder in sections assets layout snippets locales; do
-            for file in $(git diff --name-only origin/Development -- $folder/); do
-              git add "$file"
-            done
+            git diff --name-only origin/Development -- $folder/ | xargs -r git add
           done
 
           # Add settings_schema.json
