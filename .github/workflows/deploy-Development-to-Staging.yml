@@ -20,31 +20,28 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Merge Development to Staging (Selective Merge)
         run: |
           git fetch origin
           git checkout Staging
           git pull origin Staging
           git merge --no-commit --no-ff origin/Development || true
-
           # Exclude specific files
           git reset HEAD config/settings_data.json || true
           git checkout -- config/settings_data.json || true
 
+          
           # Allow only newly added template files (including .json)
           for file in $(git diff --diff-filter=A --name-only origin/Development -- templates/); do
             git add "$file"
           done
-
           # Allow changes in .liquid files only
           for file in $(git diff --name-only origin/Development -- templates/ | grep '\.liquid$'); do
             git add "$file"
           done
-
           # Ensure modified JSON files are NOT added (unstage them)
           # Allow only newly added JSON files
-          for file in $(git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$'); do
+          for file in $(git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$'); do
             if [ -f "templates/$file" ]; then
               echo "Skipping $file as it already exists in Staging"
             else
@@ -54,7 +51,6 @@ jobs:
           
           # Allow changes to settings_schema.json
           git add config/settings_schema.json
-
           # Commit and push changes
           git commit -m "Merge Development to Staging (excluding settings_data.json & modified JSONs, keeping new templates, .liquid files & schema)" || echo "No code changes to commit"
           git push origin Staging
