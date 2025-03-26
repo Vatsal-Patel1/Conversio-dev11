@@ -30,28 +30,32 @@ jobs:
 
       - name: Add Allowed Files Manually
         run: |
-          # Exclude settings_data.json
+          echo "🔹 Excluding settings_data.json"
           git restore --staged config/settings_data.json || true
           git checkout -- config/settings_data.json || true
           
-          # Allow only NEW JSON files in templates/ (Added files 'A')
-          git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$' | xargs -r git add
+          echo "🔹 Allowing only NEW JSON files in templates/ (Added 'A'):"
+          git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$' | tee new_json_files.log
+          cat new_json_files.log | xargs -r git add
           
-          # Allow all .liquid file changes in templates/
-          git diff --name-only origin/Development -- templates/ | grep '\.liquid$' | xargs -r git add
+          echo "🔹 Allowing all .liquid file changes in templates/:"
+          git diff --name-only origin/Development -- templates/ | grep '\.liquid$' | tee liquid_files.log
+          cat liquid_files.log | xargs -r git add
 
-          # ❌ EXPLICITLY REMOVE MODIFIED JSON FILES FROM COMMIT
-          git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$' | xargs -r git restore --staged
-          git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$' | xargs -r git checkout --
+          echo "🔹 Modified JSON files in templates/ (Excluding from commit):"
+          git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$' | tee modified_json_files.log
+          cat modified_json_files.log | xargs -r git restore --staged
+          cat modified_json_files.log | xargs -r git checkout --
 
-          # ✅ Allow ALL changes (new & modified files) in sections/, assets/, layout/, snippets/, and locales/
+          echo "🔹 Allowing ALL changes in sections/, assets/, layout/, snippets/, and locales/:"
           for folder in sections assets layout snippets locales; do
-            git diff --name-only origin/Development -- $folder/ | xargs -r git add
+            git diff --name-only origin/Development -- $folder/ | tee -a allowed_files.log
+            cat allowed_files.log | xargs -r git add
           done
 
-          # Add settings_schema.json
+          echo "🔹 Adding settings_schema.json"
           git add config/settings_schema.json
 
-          # Commit and push changes (if any)
-          git commit -m "Deploy: Selective sync from Development to Staging (including sections, assets, layout, snippets, locales, excluding modified JSONs in templates/)" || echo "No code changes to commit"
+          echo "🔹 Committing and pushing changes..."
+          git commit -m "Deploy: Selective sync from Development to Staging (including sections, assets, layout, snippets, locales, excluding modified JSONs in templates/)" || echo "✅ No code changes to commit"
           git push origin Staging
