@@ -38,22 +38,16 @@ jobs:
           git checkout -- config/settings_data.json || true
 
           echo "🔹 Checking for new JSON files in templates/ (Added 'A')..."
-          git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$' || echo "❌ No new JSON files found."
-          git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$' | xargs -r git add
+          git diff --cached --name-only origin/Development -- templates/ | grep '\.json$' || echo "❌ No new JSON files found."
+          git diff --cached --name-only origin/Development -- templates/ | grep '\.json$' | xargs -r git add
 
           echo "🔹 Checking for modified JSON files in templates/ (Should be ignored)..."
-          git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$' || echo "✅ No modified JSON files found."
-          modified_json_files=$(git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$' || true)
-          if [[ -n "$modified_json_files" ]]; then
-            echo "🚫 Ignoring modified JSON files:"
-            echo "$modified_json_files"
-            git reset $modified_json_files
-            git checkout -- $modified_json_files
-          fi
+          git diff --cached --name-only origin/Development -- templates/ | grep '\.json$' || echo "✅ No modified JSON files found."
+        
 
           echo "🔹 Allowing all .liquid file changes in templates/..."
-          git diff --name-only origin/Development -- templates/ | grep '\.liquid$' || echo "❌ No .liquid file changes found."
-          git diff --name-only origin/Development -- templates/ | grep '\.liquid$' | xargs -r git add
+          git diff --cached --name-only origin/Development -- templates/ | grep '\.liquid$' || echo "❌ No .liquid file changes found."
+          git diff --cached --name-only origin/Development -- templates/ | grep '\.liquid$' | xargs -r git add
 
           echo "🔹 Allowing ALL changes in sections/, assets/, layout/, snippets/, and locales/..."
           git diff --name-only origin/Development -- sections/ assets/ layout/ snippets/ locales/ || echo "❌ No changes found in allowed folders."
