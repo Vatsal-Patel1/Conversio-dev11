@@ -49,7 +49,7 @@ jobs:
           fi
 
           echo "🔹 Checking for modified JSON files in templates/ (Should be ignored)..."
-          modified_json_files=$(git diff --name-only origin/Development -- 'templates/*.json' || true)
+          modified_json_files=$(git diff --name-only -- 'templates/*.json' || true)
           if [[ -n "$modified_json_files" ]]; then
             echo "🚫 Ignoring modified JSON files:"
             echo "$modified_json_files"
@@ -70,7 +70,7 @@ jobs:
           fi
 
           echo "🔹 Allowing ALL changes in sections/, assets/, layout/, snippets/, and locales/..."
-          allowed_files=$(git diff --name-only origin/Development -- sections/ assets/ layout/ snippets/ locales/ || true)
+          allowed_files=$(git diff --name-only -- sections/ assets/ layout/ snippets/ locales/ || true)
           if [[ -n "$allowed_files" ]]; then
             echo "✅ Allowed changes found:"
             echo "$allowed_files"
