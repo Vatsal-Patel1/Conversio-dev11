@@ -23,6 +23,7 @@ jobs:
 
       - name: Fetch Latest Changes
         run: |
+          git fetch origin --all  # Fetch all branches
           git checkout Staging
           git pull origin Staging
           git merge --no-commit --no-ff origin/Development || true
@@ -34,8 +35,15 @@ jobs:
         run: |
           # Exclude settings_data.json from being added
           echo "🔹 Excluding settings_data.json"
-          git reset config/settings_data.json || true
-          git checkout -- config/settings_data.json || true
+          
+          # Check if settings_data.json exists and is staged, then reset and checkout
+          if git ls-files --stage | grep -q 'config/settings_data.json'; then
+            echo "⚠️ Resetting settings_data.json as it's staged"
+            git reset config/settings_data.json || true
+            git checkout -- config/settings_data.json || true
+          else
+            echo "✅ No changes detected for settings_data.json, skipping reset."
+          fi
 
           # Handle new and modified JSON files in templates/ directory
           NEW_JSON_FILES=$(git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$')
