@@ -1,10 +1,10 @@
 name: Deploy Development to Staging
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Manual trigger via GitHub Actions
 
 permissions:
-  contents: write
+  contents: write  # Allow GitHub Actions to push changes
 
 jobs:
   deploy:
@@ -14,56 +14,41 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Ensure full history is fetched
 
       - name: Configure Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Fetch Latest Changes
+      - name: Merge Development to Staging (Selective Merge)
         run: |
           git fetch origin
           git checkout Staging
           git pull origin Staging
           git merge --no-commit --no-ff origin/Development || true
 
-          echo "🔍 Checking Git Status Before Processing:"
-          git status
+          # Exclude specific files but allow necessary changes
+          git reset HEAD config/settings_data.json || true
+          git checkout -- config/settings_data.json || true  # Restore settings_data.json to middleware state
 
-      - name: Add Allowed Files Manually
-        run: |
-          echo "🔹 Excluding settings_data.json"
-          git reset config/settings_data.json || true
-          git checkout -- config/settings_data.json || true
+          # Allow only newly added templates
+          for file in $(git diff --diff-filter=A --name-only origin/Development -- templates/); do
+            git diff --name-only
+            git add "$file"
+          done
 
-          echo "🔹 Checking for new JSON files in templates/ (Added 'A')..."
-          git diff --cached --name-only origin/Development -- templates/ | grep '\.json$' || echo "❌ No new JSON files found."
-          git diff --cached --name-only origin/Development -- templates/ | grep '\.json$' | xargs -r git add
+          # Allow only modified added templates
+          for file in $(git diff --diff-filter=M --name-only origin/Development -- templates/); do
+            git diff --name-only
+            git add "$file"
+          done
 
-          echo "🔹 Checking for modified JSON files in templates/ (Should be ignored)..."
-          git diff --cached --name-only origin/Development -- templates/ | grep '\.json$' || echo "✅ No modified JSON files found."
-        
 
-          echo "🔹 Allowing all .liquid file changes in templates/..."
-          git diff --cached --name-only origin/Development -- templates/ | grep '\.liquid$' || echo "❌ No .liquid file changes found."
-          git diff --cached --name-only origin/Development -- templates/ | grep '\.liquid$' | xargs -r git add
-
-          echo "🔹 Allowing ALL changes in sections/, assets/, layout/, snippets/, and locales/..."
-          git diff --name-only origin/Development -- sections/ assets/ layout/ snippets/ locales/ || echo "❌ No changes found in allowed folders."
-          git diff --name-only origin/Development -- sections/ assets/ layout/ snippets/ locales/ | xargs -r git add
-
-          echo "🔹 Adding settings_schema.json"
+          # Allow changes to settings_schema.json
           git add config/settings_schema.json
 
-          echo "🔍 Checking Git Status Before Commit:"
-          git status
+          # Commit and push only code changes, new settings, and new templates
+          git commit -m "Merge Development to Staging (excluding settings_data.json, keeping new templates & schema)" || echo "No code changes to commit"
 
-          echo "🔹 Committing and pushing changes..."
-          git commit -m "Deploy: Selective sync from Development to Staging" || echo "✅ No code changes to commit"
           git push origin Staging
-
-      - name: Debug Git Log
-        run: |
-          echo "🔍 Showing Last 5 Git Commits:"
-          git log -5 --oneline
