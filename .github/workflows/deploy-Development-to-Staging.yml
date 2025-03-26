@@ -20,37 +20,45 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-      - name: Merge Development to Staging (Selective Merge)
+
+      - name: Fetch Latest Changes
         run: |
           git fetch origin
           git checkout Staging
           git pull origin Staging
-          git merge --no-commit --no-ff origin/Development || true
-          # Exclude specific files
+
+      - name: Add Allowed Files Manually
+        run: |
+          # Exclude settings_data.json
           git reset HEAD config/settings_data.json || true
           git checkout -- config/settings_data.json || true
-
           
-          # Allow only newly added template files (including .json)
-          for file in $(git diff --diff-filter=A --name-only origin/Development -- templates/); do
+          # Allow only NEW JSON files in templates/
+          for file in $(git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$'); do
             git add "$file"
           done
-          # Allow changes in .liquid files only
+
+          # Allow all .liquid file changes in templates/
           for file in $(git diff --name-only origin/Development -- templates/ | grep '\.liquid$'); do
             git add "$file"
           done
-          # Ensure modified JSON files are NOT added (unstage them)
-          # Allow only newly added JSON files
+
+          # Ensure modified JSON files in templates/ are NOT added
           for file in $(git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$'); do
-            if [ -f "templates/$file" ]; then
-              echo "Skipping $file as it already exists in Staging"
-            else
-              git add "$file"
-            fi
+            git reset HEAD "$file"
+            git checkout -- "$file"
           done
-          
-          # Allow changes to settings_schema.json
+
+          # ✅ Allow ALL changes (new & modified files) in sections/, assets/, layout/, snippets/, and locales/
+          for folder in sections assets layout snippets locales; do
+            for file in $(git diff --name-only origin/Development -- $folder/); do
+              git add "$file"
+            done
+          done
+
+          # Add settings_schema.json
           git add config/settings_schema.json
-          # Commit and push changes
-          git commit -m "Merge Development to Staging (excluding settings_data.json & modified JSONs, keeping new templates, .liquid files & schema)" || echo "No code changes to commit"
+
+          # Commit and push changes (if any)
+          git commit -m "Deploy: Selective sync from Development to Staging (including sections, assets, layout, snippets, locales, excluding modified JSONs in templates/)" || echo "No code changes to commit"
           git push origin Staging
