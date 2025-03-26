@@ -34,69 +34,67 @@ jobs:
 
       - name: Add Allowed Files Manually
         run: |
-          echo -e "\n🔹 Excluding settings_data.json\n"
+          echo -e "\n🔹 Excluding settings_data.json"
           git reset HEAD config/settings_data.json || true
           git checkout -- config/settings_data.json || true
 
-          echo -e "\n🔹 Checking for new JSON files in templates/ (Added 'A')...\n"
+          echo -e "\n🔹 Checking for new JSON files in templates/ (Added 'A')..."
           new_json_files=$(git diff --name-only origin/Development -- 'templates/*.json' || true)
           if [[ -n "$new_json_files" ]]; then
-            echo -e "✅ New JSON files found:\n$new_json_files\n"
+            echo -e "✅ New JSON files found:\n$new_json_files"
             echo "$new_json_files" | xargs -r git add
           else
-            echo -e "❌ No new JSON files found.\n"
+            echo "❌ No new JSON files found."
           fi
 
-          echo -e "\n🔹 Checking for modified JSON files in templates/ (Should be ignored)...\n"
+          echo -e "\n🔹 Checking for modified JSON files in templates/ (Should be ignored)..."
           modified_json_files=$(git diff --name-only -- 'templates/*.json' || true)
           if [[ -n "$modified_json_files" ]]; then
-            echo -e "🚫 Ignoring modified JSON files:\n$modified_json_files\n"
+            echo -e "🚫 Ignoring modified JSON files:\n$modified_json_files"
             echo "$modified_json_files" | xargs -r git restore --staged
             echo "$modified_json_files" | xargs -r git checkout --
-            echo -e "\n"
           else
-            echo -e "✅ No modified JSON files found.\n"
+            echo "✅ No modified JSON files found."
           fi
 
-          echo -e "\n🔹 Allowing all .liquid file changes in templates/...\n"
+          echo -e "\n🔹 Allowing all .liquid file changes in templates/..."
           liquid_files=$(git diff --name-only origin/Development -- 'templates/*.liquid' || true)
           if [[ -n "$liquid_files" ]]; then
-            echo -e "✅ Liquid files found:\n$liquid_files\n"
+            echo -e "✅ Liquid files found:\n$liquid_files"
             echo "$liquid_files" | xargs -r git add
           else
-            echo -e "❌ No .liquid file changes found.\n"
+            echo "❌ No .liquid file changes found."
           fi
 
-          echo -e "\n🔹 Allowing ALL changes in sections/, assets/, layout/, snippets/, and locales/...\n"
+          echo -e "\n🔹 Allowing ALL changes in sections/, assets/, layout/, snippets/, and locales/..."
           allowed_files=$(git diff --name-only origin/Development -- sections/ assets/ layout/ snippets/ locales/ || true)
           if [[ -n "$allowed_files" ]]; then
-            echo -e "✅ Allowed changes found:\n$allowed_files\n"
+            echo -e "✅ Allowed changes found:\n$allowed_files"
             echo "$allowed_files" | xargs -r git add
           else
-            echo -e "❌ No changes found in allowed folders.\n"
+            echo "❌ No changes found in allowed folders."
           fi
 
-          echo -e "\n🔹 Allowing ALL modified changes in sections/, assets/, layout/, snippets/, and locales/...\n"
+          echo -e "\n🔹 Allowing ALL modified changes in sections/, assets/, layout/, snippets/, and locales/..."
           modified_files=$(git diff --name-only -- sections/ assets/ layout/ snippets/ locales/ || true)
           if [[ -n "$modified_files" ]]; then
-            echo -e "✅ Allowed changes found:\n$modified_files\n"
+            echo -e "✅ Allowed changes found:\n$modified_files"
             echo "$modified_files" | xargs -r git add
           else
-            echo -e "❌ No modified changes found in allowed folders.\n"
+            echo "❌ No modified changes found in allowed folders."
           fi
 
-          echo -e "\n🔹 Adding settings_schema.json\n"
+          echo -e "\n🔹 Adding settings_schema.json"
           git add config/settings_schema.json
 
-          echo -e "\n🔍 Checking Git Status Before Commit:\n"
+          echo -e "\n🔍 Checking Git Status Before Commit:"
           git status
 
-          echo -e "\n🔹 Committing and pushing changes...\n"
+          echo -e "\n🔹 Committing and pushing changes..."
           git commit -m "Deploy: Selective sync from Development to Staging" || echo "✅ No code changes to commit"
           git push origin Staging
-          echo -e "\n"
 
       - name: Debug Git Log
         run: |
-          echo -e "\n🔍 Showing Last 5 Git Commits:\n"
+          echo -e "\n🔍 Showing Last 5 Git Commits:"
           git log -5 --oneline
