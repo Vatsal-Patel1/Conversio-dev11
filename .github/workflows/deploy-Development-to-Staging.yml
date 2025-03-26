@@ -1,100 +1,75 @@
 name: Deploy Development to Staging
 
 on:
-  workflow_dispatch: # Manual trigger via GitHub Actions
+  workflow_dispatch:
 
 permissions:
-  contents: write  # Allow GitHub Actions to push changes
+  contents: write
 
 jobs:
-  merge:
+  deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Staging Branch
+      - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          ref: Staging
-          fetch-depth: 0  # Ensure the full history is fetched to avoid shallow clone issues
+          fetch-depth: 0
 
-      - name: Fetch All Remote Branches
-        run: git fetch --all  # Make sure all branches are fetched from the remote
-
-      - name: Checkout Development Branch
-        uses: actions/checkout@v3
-        with:
-          ref: Development
-          fetch-depth: 0  # Ensure the full history is fetched
-
-      - name: List Changed Files Between Staging and Development
-        id: list_changed_files
+      - name: Configure Git
         run: |
-          # Get the list of modified, added, or deleted files between Staging and Development
-          git diff --name-only origin/Staging...origin/Development > changed_files.txt
-          
-          # Debugging: Print out the changed files to make sure it is populated
-          if [[ -s changed_files.txt ]]; then
-            echo "Changed files:"
-            cat changed_files.txt
-          else
-            echo "No changed files detected."
-          fi
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Filter Allowed Files (JSON and Liquid)
-        id: filter_json_and_liquid
+      - name: Fetch Latest Changes
         run: |
-          # Ensure the changed_files.txt file has content
-          if [[ -s changed_files.txt ]]; then
-            # Filter out modified JSON files from template folder but include new ones
-            NEW_JSON_FILES=$(grep -E '^template/.*\.json$' changed_files.txt | grep '^[^ ]*$')  # Only newly added JSON files
-            MODIFIED_LIQUID_FILES=$(grep -E '^template/.*\.liquid$' changed_files.txt)
-
-            # Debugging: Print the filtered files
-            echo "New JSON Files: $NEW_JSON_FILES"
-            echo "Modified Liquid Files: $MODIFIED_LIQUID_FILES"
-
-            # Combine the allowed files
-            ALLOWED_FILES="$NEW_JSON_FILES $MODIFIED_LIQUID_FILES"
-            echo "ALLOWED_FILES=$ALLOWED_FILES" >> $GITHUB_ENV  # Save this variable for later use
-          else
-            echo "No changed files detected. Skipping the merge process."
-            exit 1  # Exit if no files were changed
-          fi
-
-      - name: Checkout Staging Branch Again
-        uses: actions/checkout@v3
-        with:
-          ref: Staging
-
-      - name: Apply Allowed Changes to Staging
-        run: |
-          # If ALLOWED_FILES is empty, we stop the workflow
-          if [[ -z "$ALLOWED_FILES" ]]; then
-            echo "No allowed files to merge. Exiting."
-            exit 0
-          fi
-
-          # Create a new temporary branch for merging allowed changes
-          git checkout -b merge-allowed-changes
-
-          # Add only the allowed files from the Development branch
-          for file in $ALLOWED_FILES; do
-            git checkout origin/Development -- "$file"
-          done
-
-          # Commit and push the allowed changes to a temporary branch
-          git add .
-          git commit -m "Merge allowed changes from Development to Staging"
-          git push origin merge-allowed-changes
-
-      - name: Merge Allowed Changes into Staging
-        run: |
-          # Checkout the Staging branch and merge the allowed changes
+          git fetch origin
           git checkout Staging
-          git merge --no-ff merge-allowed-changes
+          git pull origin Staging
+          git merge --no-commit --no-ff origin/Development || true
+
+          echo "🔍 Checking Git Status Before Processing:"
+          git status
+
+      - name: Add Allowed Files Manually
+        run: |
+          echo "🔹 Excluding settings_data.json"
+          git reset config/settings_data.json || true
+          git checkout -- config/settings_data.json || true
+
+          echo "🔹 Checking for new JSON files in templates/ (Added 'A')..."
+          git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$' || echo "❌ No new JSON files found."
+          git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$' | xargs -r git add
+
+          echo "🔹 Checking for modified JSON files in templates/ (Should be ignored)..."
+          git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$' || echo "✅ No modified JSON files found."
+          modified_json_files=$(git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$' || true)
+          if [[ -n "$modified_json_files" ]]; then
+            echo "🚫 Ignoring modified JSON files:"
+            echo "$modified_json_files"
+            git reset $modified_json_files
+            git checkout -- $modified_json_files
+          fi
+
+          echo "🔹 Allowing all .liquid file changes in templates/..."
+          git diff --name-only origin/Development -- templates/ | grep '\.liquid$' || echo "❌ No .liquid file changes found."
+          git diff --name-only origin/Development -- templates/ | grep '\.liquid$' | xargs -r git add
+
+          echo "🔹 Allowing ALL changes in sections/, assets/, layout/, snippets/, and locales/..."
+          git diff --name-only origin/Development -- sections/ assets/ layout/ snippets/ locales/ || echo "❌ No changes found in allowed folders."
+          git diff --name-only origin/Development -- sections/ assets/ layout/ snippets/ locales/ | xargs -r git add
+
+          echo "🔹 Adding settings_schema.json"
+          git add config/settings_schema.json
+
+          echo "🔍 Checking Git Status Before Commit:"
+          git status
+
+          echo "🔹 Committing and pushing changes..."
+          git commit -m "Deploy: Selective sync from Development to Staging" || echo "✅ No code changes to commit"
           git push origin Staging
 
-      - name: Clean Up Temporary Branch
+      - name: Debug Git Log
         run: |
-          # Delete the temporary merge branch
-          git branch -D merge-allowed-changes
-          git push origin --delete merge-allowed-changes
+          echo "🔍 Showing Last 5 Git Commits:"
+          git log -5 --oneline
