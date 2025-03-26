@@ -47,7 +47,13 @@ jobs:
           # Ensure modified JSON files in templates/ are NOT added
           for file in $(git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$'); do
             git reset HEAD "$file"
-            git checkout -- "$file"
+            
+            # Check if the file exists in history before resetting
+            if git rev-parse HEAD~2 &>/dev/null; then
+              git checkout HEAD~2 -- "$file"  # Reset file to two commits behind
+            else
+              echo "Skipping $file: Not enough commit history."
+            fi
           done
 
           # ✅ Allow ALL changes (new & modified files) in sections/, assets/, layout/, snippets/, and locales/
