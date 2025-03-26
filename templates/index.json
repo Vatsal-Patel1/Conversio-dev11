@@ -125,9 +125,9 @@
           "type": "row",
           "settings": {
             "caption": "Caption",
-            "heading": "Row",
+            "heading": "Row test 123",
             "text": "<p>Pair text with an image to focus on your chosen product, collection, or blog post. Add details on availability, style, or even provide a review.</p>",
-            "button_label": "Button label",
+            "button_label": "Button label 1234",
             "button_link": ""
           }
         },
@@ -150,12 +150,23 @@
             "button_label": "Button label",
             "button_link": ""
           }
+        },
+        "row_3MEHT9": {
+          "type": "row",
+          "settings": {
+            "caption": "Caption",
+            "heading": "Row",
+            "text": "<p>Pair text with an image to focus on your chosen product, collection, or blog post. Add details on availability, style, or even provide a review.</p>",
+            "button_label": "Button label",
+            "button_link": ""
+          }
         }
       },
       "block_order": [
         "row_LPbK8d",
         "row_Tq9Ddd",
-        "row_E8a6Bc"
+        "row_E8a6Bc",
+        "row_3MEHT9"
       ],
       "settings": {
         "image_height": "medium",
