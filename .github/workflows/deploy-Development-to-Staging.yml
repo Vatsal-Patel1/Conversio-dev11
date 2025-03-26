@@ -43,11 +43,15 @@ jobs:
           done
 
           # Ensure modified JSON files are NOT added (unstage them)
-          for file in $(git diff --diff-filter=M --name-only origin/Development -- templates/ | grep '\.json$'); do
-            git reset HEAD "$file"
-            git checkout -- "$file"  # Revert changes in modified JSON files
+          # Allow only newly added JSON files
+          for file in $(git diff --diff-filter=A --name-only origin/Development -- templates/ | grep '\.json$'); do
+            if [ -f "templates/$file" ]; then
+              echo "Skipping $file as it already exists in Staging"
+            else
+              git add "$file"
+            fi
           done
-
+          
           # Allow changes to settings_schema.json
           git add config/settings_schema.json
 
