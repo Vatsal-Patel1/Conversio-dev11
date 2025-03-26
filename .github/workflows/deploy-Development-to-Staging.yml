@@ -30,12 +30,19 @@ jobs:
         run: |
           # Get the list of modified, added, or deleted files between Staging and Development
           git diff --name-only origin/Staging...origin/Development > changed_files.txt
-          cat changed_files.txt  # Debugging: print out the changed files
+          
+          # Debugging: Print out the changed files to make sure it is populated
+          if [[ -s changed_files.txt ]]; then
+            echo "Changed files:"
+            cat changed_files.txt
+          else
+            echo "No changed files detected."
+          fi
 
       - name: Filter Allowed Files (JSON and Liquid)
         id: filter_json_and_liquid
         run: |
-          # Check if the changed_files.txt has content
+          # Ensure the changed_files.txt file has content
           if [[ -s changed_files.txt ]]; then
             # Filter out modified JSON files from template folder but include new ones
             NEW_JSON_FILES=$(grep -E '^template/.*\.json$' changed_files.txt | grep '^[^ ]*$')  # Only newly added JSON files
