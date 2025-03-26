@@ -39,7 +39,7 @@ jobs:
           git checkout -- config/settings_data.json || true
 
           echo "🔹 Checking for new JSON files in templates/ (Added 'A')..."
-          new_json_files=$(git diff --diff-filter=A --name-only origin/Development -- 'templates/*.json' || true)
+          new_json_files=$(git diff --name-only origin/Development -- 'templates/*.json' || true)
           if [[ -n "$new_json_files" ]]; then
             echo "✅ New JSON files found:"
             echo "$new_json_files"
@@ -49,7 +49,7 @@ jobs:
           fi
 
           echo "🔹 Checking for modified JSON files in templates/ (Should be ignored)..."
-          modified_json_files=$(git diff --diff-filter=M --name-only origin/Development -- 'templates/*.json' || true)
+          modified_json_files=$(git diff --name-only origin/Development -- 'templates/*.json' || true)
           if [[ -n "$modified_json_files" ]]; then
             echo "🚫 Ignoring modified JSON files:"
             echo "$modified_json_files"
