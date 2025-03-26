@@ -1,0 +1,45 @@
+name: Deploy Development to Staging
+
+on:
+  workflow_dispatch: # Manual trigger via GitHub Actions
+
+permissions:
+  contents: write  # Allow GitHub Actions to push changes
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensure full history is fetched
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge Development to Staging (Selective Merge)
+        run: |
+          git fetch origin
+          git checkout Staging
+          git pull origin Staging
+          git merge --no-commit --no-ff origin/Development || true
+
+          # Exclude specific files but allow necessary changes
+          git reset HEAD config/settings_data.json || true
+          git checkout -- config/settings_data.json || true  # Restore settings_data.json to middleware state
+
+          # Allow only newly added templates
+          for file in $(git diff --diff-filter=A --name-only origin/Development -- templates/); do
+            git add "$file"
+          done
+
+          # Allow changes to settings_schema.json
+          git add config/settings_schema.json
+
+          # Commit and push only code changes, new settings, and new templates
+          git commit -m "Merge Development to Staging (excluding settings_data.json, keeping new templates & schema)" || echo "No code changes to commit"
+          git push origin Staging
