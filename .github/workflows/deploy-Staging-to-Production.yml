@@ -12,7 +12,7 @@ jobs:
       - name: Checkout Staging Branch
         uses: actions/checkout@v4
         with:
-          ref: staging
+          ref: Staging
           fetch-depth: 0
 
       - name: Create and Push Runtime Branch (build-staging)
@@ -44,7 +44,7 @@ jobs:
           PR_URL=$(gh pr create \
             --repo=${GITHUB_REPO} \
             --head=build-staging \
-            --base=production \
+            --base=Production \
             --title="Auto PR: Staging to Production" \
             --body=":robot: This is an automated PR from staging to production." \
             --draft | tee /dev/tty)
@@ -63,7 +63,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUMBER=$(gh pr list --state open --base production --head build-staging --json number --jq '.[0].number')
+          PR_NUMBER=$(gh pr list --state open --base Production --head build-staging --json number --jq '.[0].number')
           if [ -z "$PR_NUMBER" ]; then
             echo "No open PR found, skipping merge."
             exit 0
