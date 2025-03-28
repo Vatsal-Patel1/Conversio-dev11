@@ -47,7 +47,7 @@ jobs:
             --base=Production \
             --title="Auto PR: Staging to Production" \
             --body=":robot: This is an automated PR from staging to production." \
-            --draft)
+            )
           echo "PR_URL=$PR_URL" >> $GITHUB_ENV
           echo "Pull request created: $PR_URL"
 
