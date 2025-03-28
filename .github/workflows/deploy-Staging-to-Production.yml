@@ -88,4 +88,94 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git push origin --delete build-staging
+          git push origin --delete name: Staging to Production Auto-PR
+
+on:
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  create-runtime-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Staging Branch
+        uses: actions/checkout@v4
+        with:
+          ref: Staging
+          fetch-depth: 0
+
+      - name: Create and Push Runtime Branch (build-staging)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git checkout -b build-staging
+          git push origin build-staging
+
+  create-pull-request:
+    needs: create-runtime-branch
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    outputs:
+      pr_number: ${{ steps.create_pr.outputs.pull_number }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Create Pull Request
+        id: create_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          PR_URL=$(gh pr create \
+            --repo=${GITHUB_REPO} \
+            --head=build-staging \
+            --base=Production \
+            --title="Auto PR: Staging to Production" \
+            --body=":robot: This is an automated PR from staging to production." \
+            )
+          echo "PR_URL=$PR_URL" >> $GITHUB_ENV
+          echo "Pull request created: $PR_URL"
+
+  merge-if-no-conflicts:
+    needs: create-pull-request
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Attempt to Merge PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=$(gh pr list --state open --base Production --head build-staging --json number --jq '.[0].number')
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No open PR found, skipping merge."
+            exit 0
+          fi
+
+          echo "Attempting to merge PR #$PR_NUMBER"
+          MERGE_STATUS=$(gh pr merge $PR_NUMBER --merge --admin 2>&1 || echo "merge_failed")
+
+          if [[ "$MERGE_STATUS" == *"merge_failed"* ]]; then
+            echo "Merge conflicts detected. Manual resolution required."
+            exit 1
+          fi
+
+  cleanup-branch:
+    needs: merge-if-no-conflicts
+    if: success()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete Runtime Branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push origin --delete origin/build-staging
