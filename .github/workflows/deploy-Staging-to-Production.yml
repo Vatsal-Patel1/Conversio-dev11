@@ -69,9 +69,6 @@ jobs:
             exit 0
           fi
 
-          gh pr review $PR_NUMBER --approve
-          echo "PR #$PR_NUMBER approved."
-
           echo "Attempting to merge PR #$PR_NUMBER"
           MERGE_STATUS=$(gh pr merge $PR_NUMBER --merge --admin 2>&1 || echo "merge_failed")
 
