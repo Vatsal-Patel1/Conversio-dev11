@@ -31,6 +31,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Merge build-staging into production
         run: |
           git checkout Production
@@ -51,6 +56,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Create Pull Request for merge conflict
         uses: peter-evans/create-pull-request@v6
