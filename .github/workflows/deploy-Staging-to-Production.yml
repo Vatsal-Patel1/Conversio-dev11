@@ -1,7 +1,7 @@
-name: Auto PR and Merge Staging to Production
+name: Auto Merge Staging to Production
 
 on:
-  workflow_dispatch: # Manual trigger
+  workflow_dispatch: # Allows manual trigger
 
 jobs:
   create-merge-branch:
@@ -22,38 +22,59 @@ jobs:
           git checkout -b build-staging origin/Staging
           git push origin build-staging
 
-  create-pull-request:
+  merge-to-production:
     needs: create-merge-branch
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Create Pull Request
-        id: create_pr
+      - name: Merge build-staging into Production
+        run: |
+          git checkout Production
+          git pull origin Production
+          git merge --no-ff origin/build-staging || (echo "Merge conflict detected" && exit 1)
+          git push origin Production || (echo "Merge failed, creating PR" && exit 1)
+
+      - name: Delete build-staging branch (if merged successfully)
+        run: |
+          if git branch --merged | grep -q "build-staging"; then
+            git push origin --delete build-staging
+          fi
+
+  create-pull-request:
+    needs: merge-to-production
+    if: failure() # Run only if merge-to-production fails
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create Pull Request for merge conflict
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Resolve merge conflicts between Staging and Production"
+          title: "Merge Conflict: Staging → Production"
+          body: |
+            **Automatic Merge Failed**  
+            The attempt to merge `Staging` into `Production` encountered conflicts.  
+            Please resolve them manually and complete the merge.  
           base: Production
           branch: build-staging
-          title: "Auto PR: Merge build-staging into production"
-          body: "This PR merges `build-staging` into `production`. If there are conflicts, please resolve them manually."
-
-  auto-merge-pr:
-    needs: create-pull-request
-    runs-on: ubuntu-latest
-    steps:
-      - name: Auto-merge PR if no conflicts
-        uses: pascalgn/automerge-action@v0.15.4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          pull-request: auto
-          merge-method: squash
-          approve: true
-          delete-branch: true
+          labels: "merge-conflict, needs-review"
+          reviewers: "your-github-username"
