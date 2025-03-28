@@ -42,7 +42,7 @@ jobs:
         id: create_pr
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
           base: Production
           branch: origin/build-staging
           title: "Auto PR: Merge build-staging into Production"
