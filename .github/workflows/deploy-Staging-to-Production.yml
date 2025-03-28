@@ -85,6 +85,9 @@ jobs:
       pull-requests: write
       contents: write
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
       - name: Delete Merged Branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
