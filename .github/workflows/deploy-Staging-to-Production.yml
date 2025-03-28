@@ -25,6 +25,8 @@ jobs:
   create-pull-request:
     needs: create-merge-branch
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     outputs:
       pr_number: ${{ steps.create_pr.outputs.pull-request-number }}
     steps:
