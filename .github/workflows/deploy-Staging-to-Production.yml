@@ -1,92 +1,91 @@
-name: Auto Merge Staging to Production
+name: Staging to Production Auto-PR
 
 on:
-  workflow_dispatch: # Allows manual trigger
+  workflow_dispatch: # Manual trigger
 
 jobs:
-  create-merge-branch:
+  create-runtime-branch:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Checkout repository
+      - name: Checkout Staging Branch
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetch full history for merging
+          ref: staging
+          fetch-depth: 0
 
-      - name: Set up Git
+      - name: Create and Push Runtime Branch (build-staging)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Create build-staging branch
-        run: |
-          git checkout -b build-staging origin/Staging
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git checkout -b build-staging
           git push origin build-staging
 
   create-pull-request:
-    needs: create-merge-branch
+    needs: create-runtime-branch
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     outputs:
-      pr_number: ${{ steps.create_pr.outputs.pull-request-number }}
+      pr_number: ${{ steps.create_pr.outputs.pull_number }}
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Create PR from build-staging to production
+      - name: Create Pull Request
         id: create_pr
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.PAT }}
-          base: Production
-          branch: origin/build-staging
-          title: "Auto PR: Merge build-staging into Production"
-          body: "This PR checks for conflicts before merging build-staging into production."
-          labels: auto-merge
-          draft: false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          PR_URL=$(gh pr create \
+            --repo=${GITHUB_REPO} \
+            --head=build-staging \
+            --base=production \
+            --title="Auto PR: Staging to Production" \
+            --body=":robot: This is an automated PR from staging to production." \
+            --draft | tee /dev/tty)
+          echo "PR_URL=$PR_URL" >> $GITHUB_ENV
+          echo "Pull request created: $PR_URL"
 
-  check-for-conflicts:
+  merge-if-no-conflicts:
     needs: create-pull-request
     runs-on: ubuntu-latest
-    outputs:
-      has_conflict: ${{ steps.check_conflict.outputs.has_conflict }}
+    if: success()
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Fetch PR details
-        id: check_conflict
+      - name: Attempt to Merge PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUMBER=${{ needs.create-pull-request.outputs.pr_number }}
-          if [[ -z "$PR_NUMBER" ]]; then
-            echo "No PR found, exiting."
+          PR_NUMBER=$(gh pr list --state open --base production --head build-staging --json number --jq '.[0].number')
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No open PR found, skipping merge."
+            exit 0
+          fi
+
+          echo "Attempting to merge PR #$PR_NUMBER"
+          MERGE_STATUS=$(gh pr merge $PR_NUMBER --merge --admin 2>&1 || echo "merge_failed")
+
+          if [[ "$MERGE_STATUS" == *"merge_failed"* ]]; then
+            echo "Merge conflicts detected. Manual resolution required."
             exit 1
           fi
-          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
-          
-          MERGE_STATUS=$(gh pr view $PR_NUMBER --json mergeable --jq .mergeable)
-          if [[ "$MERGE_STATUS" == "CONFLICTING" ]]; then
-            echo "Merge conflict detected."
-            echo "has_conflict=true" >> $GITHUB_OUTPUT
-          else
-            echo "No conflicts."
-            echo "has_conflict=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  auto-merge:
-    needs: check-for-conflicts
-    if: needs.check-for-conflicts.outputs.has_conflict == 'false'
+  cleanup-branch:
+    needs: merge-if-no-conflicts
+    if: success()
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Merge PR
-        run: |
-          gh pr merge ${{ env.PR_NUMBER }} --squash --delete-branch
+      - name: Delete Runtime Branch
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push origin --delete build-staging
