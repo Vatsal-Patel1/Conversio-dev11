@@ -25,6 +25,8 @@ jobs:
   create-pull-request:
     needs: create-merge-branch
     runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.create_pr.outputs.pull-request-number }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -49,44 +51,40 @@ jobs:
   check-for-conflicts:
     needs: create-pull-request
     runs-on: ubuntu-latest
+    outputs:
+      has_conflict: ${{ steps.check_conflict.outputs.has_conflict }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Fetch PR details
-        id: check_conflicts
+        id: check_conflict
         run: |
-          PR_NUMBER=$(gh pr list --base Production --head build-staging --json number --jq '.[0].number')
+          PR_NUMBER=${{ needs.create-pull-request.outputs.pr_number }}
           if [[ -z "$PR_NUMBER" ]]; then
             echo "No PR found, exiting."
             exit 1
           fi
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
-          gh pr view $PR_NUMBER --json mergeable --jq .mergeable > merge_status.txt
-          cat merge_status.txt
-          MERGE_STATUS=$(cat merge_status.txt)
+          
+          MERGE_STATUS=$(gh pr view $PR_NUMBER --json mergeable --jq .mergeable)
           if [[ "$MERGE_STATUS" == "CONFLICTING" ]]; then
             echo "Merge conflict detected."
-            echo "HAS_CONFLICT=true" >> $GITHUB_ENV
+            echo "has_conflict=true" >> $GITHUB_OUTPUT
           else
             echo "No conflicts."
-            echo "HAS_CONFLICT=false" >> $GITHUB_ENV
+            echo "has_conflict=false" >> $GITHUB_OUTPUT
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   auto-merge:
     needs: check-for-conflicts
+    if: needs.check-for-conflicts.outputs.has_conflict == 'false'
     runs-on: ubuntu-latest
     steps:
-      - name: Check Conflict Status
-        run: |
-          echo "HAS_CONFLICT=${{ needs.check-for-conflicts.outputs.HAS_CONFLICT }}" >> $GITHUB_ENV
-
-      - name: Merge PR (If No Conflict)
-        if: env.HAS_CONFLICT == 'false'
+      - name: Merge PR
         run: |
           gh pr merge ${{ env.PR_NUMBER }} --squash --delete-branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
