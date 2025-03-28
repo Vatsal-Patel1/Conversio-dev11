@@ -77,11 +77,16 @@ jobs:
 
   auto-merge:
     needs: check-for-conflicts
-    if: env.HAS_CONFLICT == 'false'
     runs-on: ubuntu-latest
     steps:
-      - name: Merge PR
+      - name: Check Conflict Status
+        run: |
+          echo "HAS_CONFLICT=${{ needs.check-for-conflicts.outputs.HAS_CONFLICT }}" >> $GITHUB_ENV
+
+      - name: Merge PR (If No Conflict)
+        if: env.HAS_CONFLICT == 'false'
         run: |
           gh pr merge ${{ env.PR_NUMBER }} --squash --delete-branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
