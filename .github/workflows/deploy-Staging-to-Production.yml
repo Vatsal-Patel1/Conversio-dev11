@@ -44,7 +44,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           base: Production
-          branch: build-staging
+          branch: origin/build-staging
           title: "Auto PR: Merge build-staging into Production"
           body: "This PR checks for conflicts before merging build-staging into production."
           labels: auto-merge
