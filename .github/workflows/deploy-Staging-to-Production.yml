@@ -35,7 +35,7 @@ jobs:
         run: |
           git checkout Production
           git pull origin Production
-          git merge --no-ff build-staging || echo "Merge conflict detected"
+          git merge --no-ff origin/build-staging || echo "Merge conflict detected"
           git push origin Production || echo "Merge failed, creating PR"
 
       - name: Delete build-staging branch (if merged)
