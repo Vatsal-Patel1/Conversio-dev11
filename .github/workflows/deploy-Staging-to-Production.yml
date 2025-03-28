@@ -81,6 +81,9 @@ jobs:
     needs: merge-if-no-conflicts
     if: success()
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
     steps:
       - name: delete branch
         uses: SvanBoxel/delete-merged-branch@main
