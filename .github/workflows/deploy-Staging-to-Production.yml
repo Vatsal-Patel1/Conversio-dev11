@@ -83,9 +83,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    steps:
-      - name: Delete Runtime Branch
+     steps:
+      - name: delete branch
+        uses: SvanBoxel/delete-merged-branch@main
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git branch -d origin/build-staging
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
