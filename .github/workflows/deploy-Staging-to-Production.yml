@@ -22,58 +22,66 @@ jobs:
           git checkout -b build-staging origin/Staging
           git push origin build-staging
 
-  merge-to-production:
+  create-pull-request:
     needs: create-merge-branch
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Merge build-staging into Production
-        run: |
-          git checkout Production
-          git pull origin Production
-          git merge --no-ff origin/build-staging || (echo "Merge conflict detected" && exit 1)
-          git push origin Production || (echo "Merge failed, creating PR" && exit 1)
+      - name: Create PR from build-staging to production
+        id: create_pr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: Production
+          branch: build-staging
+          title: "Auto PR: Merge build-staging into Production"
+          body: "This PR checks for conflicts before merging build-staging into production."
+          labels: auto-merge
+          draft: false
 
-      - name: Delete build-staging branch (if merged successfully)
-        run: |
-          if git branch --merged | grep -q "build-staging"; then
-            git push origin --delete build-staging
-          fi
-
-  create-pull-request:
-    needs: merge-to-production
-    if: failure() # Run only if merge-to-production fails
+  check-for-conflicts:
+    needs: create-pull-request
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set up Git
+      - name: Fetch PR details
+        id: check_conflicts
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          PR_NUMBER=$(gh pr list --base Production --head build-staging --json number --jq '.[0].number')
+          if [[ -z "$PR_NUMBER" ]]; then
+            echo "No PR found, exiting."
+            exit 1
+          fi
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+          gh pr view $PR_NUMBER --json mergeable --jq .mergeable > merge_status.txt
+          cat merge_status.txt
+          MERGE_STATUS=$(cat merge_status.txt)
+          if [[ "$MERGE_STATUS" == "CONFLICTING" ]]; then
+            echo "Merge conflict detected."
+            echo "HAS_CONFLICT=true" >> $GITHUB_ENV
+          else
+            echo "No conflicts."
+            echo "HAS_CONFLICT=false" >> $GITHUB_ENV
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Pull Request for merge conflict
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "Resolve merge conflicts between Staging and Production"
-          title: "Merge Conflict: Staging → Production"
-          body: |
-            **Automatic Merge Failed**  
-            The attempt to merge `Staging` into `Production` encountered conflicts.  
-            Please resolve them manually and complete the merge.  
-          base: origin/Production
-          branch: origin/build-staging
-          labels: "merge-conflict, needs-review"
+  auto-merge:
+    needs: check-for-conflicts
+    if: env.HAS_CONFLICT == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge PR
+        run: |
+          gh pr merge ${{ env.PR_NUMBER }} --squash --delete-branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
