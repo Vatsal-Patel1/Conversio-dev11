@@ -74,7 +74,6 @@ jobs:
             **Automatic Merge Failed**  
             The attempt to merge `Staging` into `Production` encountered conflicts.  
             Please resolve them manually and complete the merge.  
-          base: Production
-          branch: build-staging
+          base: origin/Production
+          branch: origin/build-staging
           labels: "merge-conflict, needs-review"
-          reviewers: "your-github-username"
