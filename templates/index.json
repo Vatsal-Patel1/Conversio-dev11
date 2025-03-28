@@ -404,37 +404,51 @@
         "padding_bottom": 36
       }
     },
-    "newsletter_DkB6K7": {
-      "type": "newsletter",
+    "image_banner_fxcRRX": {
+      "type": "image-banner",
       "blocks": {
-        "heading_tmQBe7": {
+        "heading_DhXxc8": {
           "type": "heading",
           "settings": {
-            "heading": "Subscribe to our emails",
+            "heading": "Image banner",
             "heading_size": "h1"
           }
         },
-        "paragraph_8Yz8XD": {
-          "type": "paragraph",
+        "text_8VejYc": {
+          "type": "text",
           "settings": {
-            "text": "<p>Be the first to know about new collections and exclusive offers.</p>"
+            "text": "Give customers details about the banner image(s) or content on the template.",
+            "text_style": "body"
           }
         },
-        "email_form_3BW3Ah": {
-          "type": "email_form",
-          "settings": {}
+        "buttons_eRtCHW": {
+          "type": "buttons",
+          "settings": {
+            "button_label_1": "Button label",
+            "button_link_1": "",
+            "button_style_secondary_1": false,
+            "button_label_2": "Button label",
+            "button_link_2": "",
+            "button_style_secondary_2": false
+          }
         }
       },
       "block_order": [
-        "heading_tmQBe7",
-        "paragraph_8Yz8XD",
-        "email_form_3BW3Ah"
+        "heading_DhXxc8",
+        "text_8VejYc",
+        "buttons_eRtCHW"
       ],
       "settings": {
+        "image_overlay_opacity": 0,
+        "image_height": "medium",
+        "desktop_content_position": "middle-center",
+        "show_text_box": true,
+        "desktop_content_alignment": "center",
         "color_scheme": "",
-        "full_width": true,
-        "padding_top": 40,
-        "padding_bottom": 52
+        "image_behavior": "none",
+        "mobile_content_alignment": "center",
+        "stack_images_on_mobile": true,
+        "show_text_below": true
       }
     }
   },
@@ -448,6 +462,6 @@
     "rich_text_fzBAV7",
     "multicolumn_GqXyHA",
     "video_83peBg",
-    "newsletter_DkB6K7"
+    "image_banner_fxcRRX"
   ]
 }
