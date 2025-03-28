@@ -1,30 +1,62 @@
-name: Deploy Staging to Production
+name: Auto Merge Staging to Production
 
 on:
-  workflow_dispatch:  # Manual trigger
-
-permissions:
-  contents: write
+  workflow_dispatch: # This allows manual trigger
 
 jobs:
-  deploy:
+  create-merge-branch:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Fetch full history for merging
 
-      - name: Configure Git
+      - name: Set up Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Merge Staging into Production
+      - name: Create build-staging branch
         run: |
-          git fetch origin
+          git checkout -b build-staging origin/Staging
+          git push origin build-staging
+
+  merge-to-production:
+    needs: create-merge-branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge build-staging into production
+        run: |
           git checkout Production
           git pull origin Production
-          git merge --no-ff origin/Staging -m "Merging staging into production"
-          git push origin Production
+          git merge --no-ff build-staging || echo "Merge conflict detected"
+          git push origin Production || echo "Merge failed, creating PR"
+
+      - name: Delete build-staging branch (if merged)
+        run: |
+          if git branch --merged | grep -q "build-staging"; then
+            git push origin --delete build-staging
+          fi
+
+  create-pull-request:
+    needs: merge-to-production
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Pull Request for merge conflict
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: Production
+          branch: build-staging
+          title: "Resolve conflicts for build-staging"
+          body: "Merge conflicts detected while merging build-staging into production. Please resolve manually."
