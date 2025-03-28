@@ -356,12 +356,22 @@
             "link_label": "",
             "link": ""
           }
+        },
+        "column_tt6C8F": {
+          "type": "column",
+          "settings": {
+            "title": "Column",
+            "text": "<p>Pair text with an image to focus on your chosen product, collection, or blog post. Add details on availability, style, or even provide a review.</p>",
+            "link_label": "",
+            "link": ""
+          }
         }
       },
       "block_order": [
         "column_RNiDEj",
         "column_J8aWVh",
-        "column_NAGfCb"
+        "column_NAGfCb",
+        "column_tt6C8F"
       ],
       "settings": {
         "title": "Multicolumn",
