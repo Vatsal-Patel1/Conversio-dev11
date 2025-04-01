@@ -1,0 +1,23 @@
+name: Revert Production to Previous Commit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  revert:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: production
+          fetch-depth: 2  # Fetch last 2 commits to allow reset
+
+      - name: Revert to Previous Commit
+        run: |
+          git reset --hard HEAD~1  # Move to previous commit
+          git push origin production --force  # Force push to production
+
+      - name: Confirm Reversion
+        run: git log -1 --oneline
