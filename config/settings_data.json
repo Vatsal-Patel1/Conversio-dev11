@@ -146,6 +146,11 @@
         "type": "shopify://apps/cmp-insert-code/blocks/cmp-insert-code/78eb98c3-3331-4186-baf2-1c07c0f8c0d1",
         "disabled": false,
         "settings": {}
+      },
+      "1142402334413849680": {
+        "type": "shopify://apps/test-app/blocks/global-embed/f13a9a6d-9d3f-475c-ac37-bba3fe4c5321",
+        "disabled": false,
+        "settings": {}
       }
     },
     "color_schemes": {
